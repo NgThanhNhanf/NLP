@@ -1,0 +1,8 @@
+torch
+torchtext
+spacy
+nltk
+matplotlib
+numpy
+portalocker
+ipykernel
