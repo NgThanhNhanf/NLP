@@ -7,7 +7,6 @@ import spacy
 import io
 
 # 1. Load Spacy Tokenizer
-# Đảm bảo bạn đã chạy lệnh python -m spacy download ...
 try:
     spacy_en = spacy.load('en_core_web_sm')
     spacy_fr = spacy.load('fr_core_news_sm')
@@ -60,7 +59,6 @@ class TranslationDataset(Dataset):
         return torch.tensor(src_indices), torch.tensor(trg_indices)
 
 # 4. Class Collator (Để xử lý Padding trong DataLoader)
-# Chúng ta dùng Class thay vì hàm lẻ để truyền được vocab vào trong
 class Collator:
     def __init__(self, src_pad_idx, trg_pad_idx, src_sos_idx, src_eos_idx, trg_sos_idx, trg_eos_idx):
         self.src_pad_idx = src_pad_idx
@@ -87,8 +85,6 @@ class Collator:
 
 # 5. Hàm chính để gọi từ Main (Helper function)
 def build_vocab_and_tokenizers():
-    # Thay đổi đường dẫn này nếu file bạn nằm chỗ khác
-    # Lưu ý: file train dùng để build vocab
     src_filepath = 'data/raw/train.en'
     trg_filepath = 'data/raw/train.fr'
     
@@ -105,7 +101,7 @@ def get_data_loaders(batch_size=32):
     # 2. Định nghĩa đường dẫn file (Đổi tên file thành train.en, test.en như mình dặn)
     train_src, train_trg = 'data/raw/train.en', 'data/raw/train.fr'
     val_src, val_trg = 'data/raw/val.en', 'data/raw/val.fr'
-    test_src, test_trg = 'data/raw/test.en', 'data/raw/test.fr'
+    test_src, test_trg = 'data/raw/test_2016_flickr.en', 'data/raw/test_2016_flickr.fr'
     
     # 3. Tạo Dataset
     print("Đang tạo Dataset...")
