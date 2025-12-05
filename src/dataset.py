@@ -64,7 +64,7 @@ class Collator:
         src_batch = pad_sequence(src_batch, padding_value=self.src_pad_idx)
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx)
         
-        return src_batch, trg_batch, src_batch
+        return src_batch, trg_batch, src_lengths
     
 def yield_tokens(filepath, tokenizer):
     with io.open(filepath, encoding='utf-8') as f:
