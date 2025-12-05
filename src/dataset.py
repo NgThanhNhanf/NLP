@@ -51,19 +51,20 @@ class Collator:
         self.trg_eos_idx = trg_eos_idx
 
     def __call__(self, batch):
-        src_batch, trg_batch = [], []
+        src_batch, trg_batch, src_lengths = [], [], []
         for src_item, trg_item in batch:
             # Thêm <sos> và <eos>
             src_p = torch.cat([torch.tensor([self.src_sos_idx]), src_item, torch.tensor([self.src_eos_idx])], dim=0)
             trg_p = torch.cat([torch.tensor([self.trg_sos_idx]), trg_item, torch.tensor([self.trg_eos_idx])], dim=0)
             src_batch.append(src_p)
             trg_batch.append(trg_p)
+            src_lengths.append(len(src_p))
         
         # Pad sequence (Mặc định batch_first=False -> [seq_len, batch_size])
         src_batch = pad_sequence(src_batch, padding_value=self.src_pad_idx)
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx)
         
-        return src_batch, trg_batch
+        return src_batch, trg_batch, src_batch
     
 def yield_tokens(filepath, tokenizer):
     with io.open(filepath, encoding='utf-8') as f:
@@ -116,4 +117,4 @@ def get_data_loaders(batch_size=32):
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     
-    return train_loader, valid_loader, test_loader
+    return src_vocab, trg_vocab, train_loader, valid_loader, test_loader
