@@ -77,9 +77,9 @@ def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     
     print("Đang xây dựng từ điển (Vocabulary)...")
     src_vocab = build_vocab_from_iterator(yield_tokens(src_filepath, en_tokenizer), min_freq=2, specials=['<unk>', '<pad>', '<sos>', '<eos>'],
-                                          special_first=True, max_size=10000)
+                                          special_first=True, max_tokens=10000)
     trg_vocab = build_vocab_from_iterator(yield_tokens(trg_filepath, fr_tokenizer), min_freq=2, specials=['<unk>', '<pad>', '<sos>', '<eos>'],
-                                          special_first=True, max_size=10000)
+                                          special_first=True, max_tokens=10000)
     src_vocab.set_default_index(src_vocab['<unk>'])
     trg_vocab.set_default_index(trg_vocab['<unk>'])  
     
