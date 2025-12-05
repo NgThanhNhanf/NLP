@@ -5,41 +5,14 @@ from collections import Counter
 from torchtext.vocab import vocab
 import spacy
 import io
-
-# 1. Load Spacy Tokenizer
-try:
-    spacy_en = spacy.load('en_core_web_sm')
-    spacy_fr = spacy.load('fr_core_news_sm')
-except OSError:
-    print("Đang tải model ngôn ngữ Spacy...")
-    from spacy.cli import download
-    download('en_core_web_sm')
-    download('fr_core_news_sm')
-    spacy_en = spacy.load('en_core_web_sm')
-    spacy_fr = spacy.load('fr_core_news_sm')
-
-def tokenize_en(text):
-    return [tok.text for tok in spacy_en.tokenizer(text)]
-
-def tokenize_fr(text):
-    return [tok.text for tok in spacy_fr.tokenizer(text)]
-
-# 2. Xây dựng từ điển (Vocabulary)
-def build_vocab(filepath, tokenizer):
-    counter = Counter()
-    with io.open(filepath, encoding="utf8") as f:
-        for string_ in f:
-            counter.update(tokenizer(string_))
-    # Tạo vocab object, thêm special tokens
-    v = vocab(counter, min_freq=2, specials=['<unk>', '<pad>', '<sos>', '<eos>'])
-    v.set_default_index(v['<unk>'])
-    return v
+from torchtext.vocab import build_vocab_from_iterator
+from torchtext.data.utils import get_tokenizer
 
 # 3. Custom Dataset Class
 class TranslationDataset(Dataset):
     def __init__(self, src_path, trg_path, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer):
-        self.src_data = open(src_path, encoding='utf-8').readlines()
-        self.trg_data = open(trg_path, encoding='utf-8').readlines()
+        self.src_data = open(src_path, encoding='utf-8').readlines() # Đọc toàn bộ file nguồn
+        self.trg_data = open(trg_path, encoding='utf-8').readlines() # Đọc toàn bộ file đích
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
         self.src_tokenizer = src_tokenizer
@@ -49,14 +22,23 @@ class TranslationDataset(Dataset):
         return len(self.src_data)
 
     def __getitem__(self, idx):
-        src_text = self.src_data[idx].strip()
-        trg_text = self.trg_data[idx].strip()
+        # 1. Lấy câu thô
+        src_text = self.src_data[idx].strip().lower()  # Thêm lower() để chuẩn hóa
+        trg_text = self.trg_data[idx].strip().lower()
         
-        # Convert text -> List of IDs
-        src_indices = [self.src_vocab[token] for token in self.src_tokenizer(src_text)]
-        trg_indices = [self.trg_vocab[token] for token in self.trg_tokenizer(trg_text)]
+        # 2. Tokenize
+        src_tokens = self.src_tokenizer(src_text) 
+        trg_tokens = self.trg_tokenizer(trg_text)  
         
-        return torch.tensor(src_indices), torch.tensor(trg_indices)
+        # 3. Chuyển sang indices
+        src_indices = [self.src_vocab[token] for token in src_tokens] 
+        trg_indices = [self.trg_vocab["<sos>"]] + \
+                    [self.trg_vocab[token] for token in trg_tokens] + \
+                    [self.trg_vocab["<eos>"]]
+        
+        # 4. Trả về tensor
+        return torch.tensor(src_indices, dtype=torch.long), \
+            torch.tensor(trg_indices, dtype=torch.long)
 
 # 4. Class Collator (Để xử lý Padding trong DataLoader)
 class Collator:
@@ -82,32 +64,44 @@ class Collator:
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx)
         
         return src_batch, trg_batch
+    
+def yield_tokens(filepath, tokenizer):
+    with io.open(filepath, encoding='utf-8') as f:
+        for line in f:
+            yield tokenizer(line.strip())
 
 # 5. Hàm chính để gọi từ Main (Helper function)
-def build_vocab_and_tokenizers():
+def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     src_filepath = 'data/raw/train.en'
     trg_filepath = 'data/raw/train.fr'
     
     print("Đang xây dựng từ điển (Vocabulary)...")
-    src_vocab = build_vocab(src_filepath, tokenize_en)
-    trg_vocab = build_vocab(trg_filepath, tokenize_fr)
+    src_vocab = build_vocab_from_iterator(yield_tokens(src_filepath, en_tokenizer), min_freq=2, specials=['<unk>', '<pad>', '<sos>', '<eos>'],
+                                          special_first=True, max_size=10000)
+    trg_vocab = build_vocab_from_iterator(yield_tokens(trg_filepath, fr_tokenizer), min_freq=2, specials=['<unk>', '<pad>', '<sos>', '<eos>'],
+                                          special_first=True, max_size=10000)
+    src_vocab.set_default_index(src_vocab['<unk>'])
+    trg_vocab.set_default_index(trg_vocab['<unk>'])  
     
-    return src_vocab, trg_vocab, tokenize_en, tokenize_fr
+    return src_vocab, trg_vocab
 
 def get_data_loaders(batch_size=32):
+    en_tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
+    fr_tokenizer = get_tokenizer('spacy', language='fr_core_news_sm')
+
     # 1. Lấy Vocab và Tokenizer
-    src_vocab, trg_vocab, src_tokenizer, trg_tokenizer = build_vocab_and_tokenizers()
+    src_vocab, trg_vocab = build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer)
     
-    # 2. Định nghĩa đường dẫn file (Đổi tên file thành train.en, test.en như mình dặn)
+    # 2. Định nghĩa đường dẫn file
     train_src, train_trg = 'data/raw/train.en', 'data/raw/train.fr'
     val_src, val_trg = 'data/raw/val.en', 'data/raw/val.fr'
     test_src, test_trg = 'data/raw/test_2016_flickr.en', 'data/raw/test_2016_flickr.fr'
     
     # 3. Tạo Dataset
     print("Đang tạo Dataset...")
-    train_dataset = TranslationDataset(train_src, train_trg, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer)
-    valid_dataset = TranslationDataset(val_src, val_trg, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer)
-    test_dataset = TranslationDataset(test_src, test_trg, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer)
+    train_dataset = TranslationDataset(train_src, train_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
+    valid_dataset = TranslationDataset(val_src, val_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
+    test_dataset = TranslationDataset(test_src, test_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
     
     # 4. Tạo Collator
     collator = Collator(
