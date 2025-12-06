@@ -48,6 +48,7 @@ class Decoder(nn.Module):
         self.num_layers = num_layers
         
         self.embedding = nn.Embedding(output_size, hidden_size)
+
         # LSTM nhận: embedding + context từ encoder
         self.lstm = nn.LSTM(hidden_size * 2, hidden_size, num_layers=num_layers, 
                            dropout=dropout, batch_first=True)
@@ -62,7 +63,7 @@ class Decoder(nn.Module):
         
         # Lấy hidden state cuối cùng từ encoder
         encoder_context = encoder_hidden[-1].unsqueeze(1)  # [batch_size, 1, hidden_size]
-        
+
         # Kết hợp embedding với context
         lstm_input = torch.cat([embedded, encoder_context], dim=2)  # [batch_size, 1, hidden_size*2]
         
