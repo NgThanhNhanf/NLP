@@ -9,10 +9,11 @@ from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
 
 # 3. Custom Dataset Class
+# 3. Custom Dataset Class
 class TranslationDataset(Dataset):
     def __init__(self, src_path, trg_path, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer):
-        self.src_data = open(src_path, encoding='utf-8').readlines() # Đọc toàn bộ file nguồn
-        self.trg_data = open(trg_path, encoding='utf-8').readlines() # Đọc toàn bộ file đích
+        self.src_data = open(src_path, encoding='utf-8').readlines()
+        self.trg_data = open(trg_path, encoding='utf-8').readlines()
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
         self.src_tokenizer = src_tokenizer
@@ -23,22 +24,20 @@ class TranslationDataset(Dataset):
 
     def __getitem__(self, idx):
         # 1. Lấy câu thô
-        src_text = self.src_data[idx].strip().lower()  # Thêm lower() để chuẩn hóa
+        src_text = self.src_data[idx].strip().lower()
         trg_text = self.trg_data[idx].strip().lower()
         
         # 2. Tokenize
         src_tokens = self.src_tokenizer(src_text) 
-        trg_tokens = self.trg_tokenizer(trg_text)  
+        trg_tokens = self.trg_tokenizer(trg_text)
         
-        # 3. Chuyển sang indices
+        # 3. Chuyển sang indices - KHÔNG THÊM special tokens ở đây
         src_indices = [self.src_vocab[token] for token in src_tokens] 
-        trg_indices = [self.trg_vocab["<sos>"]] + \
-                    [self.trg_vocab[token] for token in trg_tokens] + \
-                    [self.trg_vocab["<eos>"]]
+        trg_indices = [self.trg_vocab[token] for token in trg_tokens]  # Không thêm <sos> và <eos>
         
         # 4. Trả về tensor
         return torch.tensor(src_indices, dtype=torch.long), \
-            torch.tensor(trg_indices, dtype=torch.long)
+               torch.tensor(trg_indices, dtype=torch.long)
 
 # 4. Class Collator (Để xử lý Padding trong DataLoader)
 class Collator:
@@ -54,7 +53,7 @@ class Collator:
         src_batch, trg_batch, src_lengths = [], [], []
         
         for src_item, trg_item in batch:
-            # Thêm <sos> và <eos>
+            # Thêm <sos> và <eos> cho source và target
             src_p = torch.cat([
                 torch.tensor([self.src_sos_idx]), 
                 src_item, 
@@ -71,11 +70,11 @@ class Collator:
             trg_batch.append(trg_p)
             src_lengths.append(len(src_p))
         
-        # Pad sequence - THÊM batch_first=True để phù hợp với model
+        # Pad sequence với batch_first=True
         src_batch = pad_sequence(src_batch, padding_value=self.src_pad_idx, batch_first=True)
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx, batch_first=True)
         
-        # QUAN TRỌNG: Chuyển src_lengths từ list sang tensor
+        # Chuyển src_lengths từ list sang tensor
         src_lengths = torch.tensor(src_lengths, dtype=torch.long)
         
         return src_batch, trg_batch, src_lengths
