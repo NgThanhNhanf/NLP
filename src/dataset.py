@@ -2,7 +2,6 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 from collections import Counter
-from torchtext.vocab import vocab
 import spacy
 import io
 from torchtext.vocab import build_vocab_from_iterator
@@ -31,9 +30,9 @@ class TranslationDataset(Dataset):
         src_tokens = self.src_tokenizer(src_text) 
         trg_tokens = self.trg_tokenizer(trg_text)
         
-        # 3. Chuyển sang indices - KHÔNG THÊM special tokens ở đây
+        # 3. Chuyển sang indices 
         src_indices = [self.src_vocab[token] for token in src_tokens] 
-        trg_indices = [self.trg_vocab[token] for token in trg_tokens]  # Không thêm <sos> và <eos>
+        trg_indices = [self.trg_vocab[token] for token in trg_tokens] 
         
         # 4. Trả về tensor
         return torch.tensor(src_indices, dtype=torch.long), \
@@ -75,6 +74,7 @@ class Collator:
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx, batch_first=True)
         
         # Chuyển src_lengths từ list sang tensor
+        print(tuple(src_lengths))
         src_lengths = torch.tensor(src_lengths, dtype=torch.long)
         
         return src_batch, trg_batch, src_lengths
