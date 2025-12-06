@@ -52,17 +52,31 @@ class Collator:
 
     def __call__(self, batch):
         src_batch, trg_batch, src_lengths = [], [], []
+        
         for src_item, trg_item in batch:
             # Thêm <sos> và <eos>
-            src_p = torch.cat([torch.tensor([self.src_sos_idx]), src_item, torch.tensor([self.src_eos_idx])], dim=0)
-            trg_p = torch.cat([torch.tensor([self.trg_sos_idx]), trg_item, torch.tensor([self.trg_eos_idx])], dim=0)
+            src_p = torch.cat([
+                torch.tensor([self.src_sos_idx]), 
+                src_item, 
+                torch.tensor([self.src_eos_idx])
+            ], dim=0)
+            
+            trg_p = torch.cat([
+                torch.tensor([self.trg_sos_idx]), 
+                trg_item, 
+                torch.tensor([self.trg_eos_idx])
+            ], dim=0)
+            
             src_batch.append(src_p)
             trg_batch.append(trg_p)
             src_lengths.append(len(src_p))
         
-        # Pad sequence (Mặc định batch_first=False -> [seq_len, batch_size])
-        src_batch = pad_sequence(src_batch, padding_value=self.src_pad_idx)
-        trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx)
+        # Pad sequence - THÊM batch_first=True để phù hợp với model
+        src_batch = pad_sequence(src_batch, padding_value=self.src_pad_idx, batch_first=True)
+        trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx, batch_first=True)
+        
+        # QUAN TRỌNG: Chuyển src_lengths từ list sang tensor
+        src_lengths = torch.tensor(src_lengths, dtype=torch.long)
         
         return src_batch, trg_batch, src_lengths
     
