@@ -74,7 +74,7 @@ class Collator:
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx, batch_first=True)
         
         # Chuyển src_lengths từ list sang tensor
-        print(tuple(src_lengths))
+        # print(tuple(src_lengths))
         src_lengths = torch.tensor(src_lengths, dtype=torch.long)
         
         return src_batch, trg_batch, src_lengths
