@@ -16,9 +16,8 @@ class Encoder(nn.Module):
         # src: [batch_size, seq_len]
         embedded = self.dropout(self.embedding(src))  # [batch_size, seq_len, hidden_size]
 
-        # Debug: Kiểm tra src_len
-        print(f"Encoder received src_len shape: {src_len.shape}")
-        print(f"Encoder received src_len values: {src_len}")
+        # print(f"Encoder received src_len shape: {src_len.shape}")
+        # print(f"Encoder received src_len values: {src_len}")
         
         # Đảm bảo src_len là tensor 1D
         if src_len.dim() == 0:  # Nếu là scalar (batch_size=1)
