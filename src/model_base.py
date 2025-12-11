@@ -34,7 +34,7 @@ class Encoder(nn.Module):
             embedded, src_len.cpu(), batch_first=True, enforce_sorted=False
         )
         
-        packed_outputs, (hidden, cell) = self.lstm(packed_embedded)
+        packed_outputs, (hidden, cell) = self.rnn(packed_embedded)
         # hidden, cell: [num_layers, batch_size, hidden_size]
         
         return hidden, cell
