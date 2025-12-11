@@ -8,7 +8,7 @@ class Encoder(nn.Module):
         self.num_layers = num_layers
         
         self.embedding = nn.Embedding(input_size, hidden_size)
-        self.lstm = nn.LSTM(hidden_size, hidden_size, num_layers=num_layers, 
+        self.rnn = nn.LSTM(hidden_size, hidden_size, num_layers=num_layers, 
                            dropout=dropout, batch_first=True, bidirectional=False) 
         self.dropout = nn.Dropout(dropout)
 
