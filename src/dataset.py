@@ -97,7 +97,7 @@ def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     src_vocab.set_default_index(src_vocab['<unk>'])
     trg_vocab.set_default_index(trg_vocab['<unk>'])  
     
-    return src_vocab, trg_vocab
+    return src_vocab, trg_vocab, en_tokenizer, fr_tokenizer
 
 def get_data_loaders(batch_size=32):
     en_tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
@@ -130,4 +130,5 @@ def get_data_loaders(batch_size=32):
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     
-    return src_vocab, trg_vocab, train_loader, valid_loader, test_loader
+    return src_vocab, trg_vocab, train_loader, valid_loader, test_loader, en_tokenizer, fr_tokenizer
+    
