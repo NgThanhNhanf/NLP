@@ -97,7 +97,7 @@ def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     src_vocab.set_default_index(src_vocab['<unk>'])
     trg_vocab.set_default_index(trg_vocab['<unk>'])  
     
-    return src_vocab, trg_vocab, en_tokenizer, fr_tokenizer
+    return src_vocab, trg_vocab
 
 def get_data_loaders(batch_size=32):
     en_tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
