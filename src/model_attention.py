@@ -115,9 +115,9 @@ class DecoderAttention(nn.Module):
         
         return prediction, hidden, cell
 
-class Seq2Seq(nn.Module):
+class Seq2SeqAttention(nn.Module):
     def __init__(self, encoder, decoder, device):
-        super(Seq2Seq, self).__init__()
+        super(Seq2SeqAttention, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.device = device
