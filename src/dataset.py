@@ -82,7 +82,7 @@ class Collator:
 def yield_tokens(filepath, tokenizer):
     with io.open(filepath, encoding='utf-8') as f:
         for line in f:
-            yield tokenizer(line.strip())
+            yield tokenizer(line.strip().lower())
 
 # 5. Hàm chính để gọi từ Main (Helper function)
 def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
@@ -99,36 +99,31 @@ def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     
     return src_vocab, trg_vocab
 
-def get_data_loaders(batch_size=32):
-    en_tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
-    fr_tokenizer = get_tokenizer('spacy', language='fr_core_news_sm')
-
-    # 1. Lấy Vocab và Tokenizer
-    src_vocab, trg_vocab = build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer)
+def get_data_loaders(batch_size=32, en_tokenizer=None, fr_tokenizer=None, src_vocab=None, trg_vocab=None):
     
-    # 2. Định nghĩa đường dẫn file
+    # Định nghĩa đường dẫn file
     train_src, train_trg = 'data/raw/train.en', 'data/raw/train.fr'
     val_src, val_trg = 'data/raw/val.en', 'data/raw/val.fr'
     test_src, test_trg = 'data/raw/test_2016_flickr.en', 'data/raw/test_2016_flickr.fr'
     
-    # 3. Tạo Dataset
+    # Tạo Dataset
     print("Đang tạo Dataset...")
     train_dataset = TranslationDataset(train_src, train_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
     valid_dataset = TranslationDataset(val_src, val_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
     test_dataset = TranslationDataset(test_src, test_trg, src_vocab, trg_vocab, en_tokenizer, fr_tokenizer)
     
-    # 4. Tạo Collator
+    # Tạo Collator
     collator = Collator(
         src_pad_idx=src_vocab['<pad>'], trg_pad_idx=trg_vocab['<pad>'],
         src_sos_idx=src_vocab['<sos>'], src_eos_idx=src_vocab['<eos>'],
         trg_sos_idx=trg_vocab['<sos>'], trg_eos_idx=trg_vocab['<eos>']
     )
     
-    # 5. Tạo DataLoader
+    # Tạo DataLoader
     print("Đang tạo DataLoader...")
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collator)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collator)
     
-    return src_vocab, trg_vocab, train_loader, valid_loader, test_loader, en_tokenizer, fr_tokenizer
+    return train_loader, valid_loader, test_loader
     
