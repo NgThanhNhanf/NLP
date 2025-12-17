@@ -77,6 +77,8 @@ class DecoderAttention(nn.Module):
     def __init__(self, output_size, hidden_size, num_layers, dropout):
         super().__init__()
 
+        self.output_size = output_size
+
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.attention = BahdanauAttention(hidden_size)
 
@@ -91,10 +93,39 @@ class DecoderAttention(nn.Module):
         self.fc_out = nn.Linear(hidden_size * 2, output_size)
         self.dropout = nn.Dropout(dropout)
 
+    # def forward(self, input, hidden, cell, encoder_outputs):
+    #     # input: [batch_size, 1]
+    #     embedded = self.dropout(self.embedding(input))
+    #     # [batch_size, 1, hidden_size]
+
+    #     decoder_hidden = hidden[-1]
+    #     # [batch_size, hidden_size]
+
+    #     context, attn_weights = self.attention(
+    #         decoder_hidden, encoder_outputs
+    #     )
+
+    #     context = context.unsqueeze(1)
+
+    #     lstm_input = torch.cat([embedded, context], dim=2)
+
+    #     output, (hidden, cell) = self.lstm(
+    #         lstm_input, (hidden, cell)
+    #     )
+
+    #     output = output.squeeze(1)
+    #     context = context.squeeze(1)
+
+    #     prediction = self.fc_out(
+    #         torch.cat([output, context], dim=1)
+    #     )
+
+    #     return prediction, hidden, cell, attn_weights
+
     def forward(self, input, hidden, cell, encoder_outputs):
         # input: [batch_size, 1]
         embedded = self.dropout(self.embedding(input))
-        # [batch_size, 1, hidden_size]
+        # embedded: [batch_size, 1, hidden_size]
 
         decoder_hidden = hidden[-1]
         # [batch_size, hidden_size]
@@ -102,14 +133,18 @@ class DecoderAttention(nn.Module):
         context, attn_weights = self.attention(
             decoder_hidden, encoder_outputs
         )
+        # context: [batch_size, hidden_size]
 
         context = context.unsqueeze(1)
+        # [batch_size, 1, hidden_size]
 
         lstm_input = torch.cat([embedded, context], dim=2)
+        # [batch_size, 1, hidden_size * 2]
 
         output, (hidden, cell) = self.lstm(
             lstm_input, (hidden, cell)
         )
+        # output: [batch_size, 1, hidden_size]
 
         output = output.squeeze(1)
         context = context.squeeze(1)
@@ -117,8 +152,10 @@ class DecoderAttention(nn.Module):
         prediction = self.fc_out(
             torch.cat([output, context], dim=1)
         )
+        # [batch_size, output_size]
 
         return prediction, hidden, cell, attn_weights
+
 
 class Seq2SeqAttention(nn.Module):
     def __init__(self, encoder, decoder, device):
