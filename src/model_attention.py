@@ -38,82 +38,87 @@ class EncoderAttention(nn.Module):
         
         return outputs, hidden, cell
 
-class Attention(nn.Module):
+class BahdanauAttention(nn.Module):
     def __init__(self, hidden_size):
-        super(Attention, self).__init__()
-        # W kết hợp hidden state của decoder và encoder output
-        self.attn = nn.Linear(hidden_size * 2, hidden_size)
+        super().__init__()
+        self.W_enc = nn.Linear(hidden_size, hidden_size, bias=False)
+        self.W_dec = nn.Linear(hidden_size, hidden_size, bias=False)
         self.v = nn.Linear(hidden_size, 1, bias=False)
 
-    def forward(self, hidden, encoder_outputs):
-        # hidden: [batch_size, hidden_size] (hidden state hiện tại của decoder)
+    def forward(self, decoder_hidden, encoder_outputs, mask=None):
+        # decoder_hidden: [batch_size, hidden_size]
         # encoder_outputs: [batch_size, src_len, hidden_size]
-        
-        src_len = encoder_outputs.shape[1]
-        
-        # Lặp lại hidden state của decoder src_len lần để khớp kích thước với encoder_outputs
-        # hidden: [batch_size, src_len, hidden_size]
-        hidden = hidden.unsqueeze(1).repeat(1, src_len, 1)
-        
-        # Tính năng lượng (energy) - mức độ phù hợp
-        # torch.cat -> [batch_size, src_len, hidden_size * 2]
-        # self.attn -> [batch_size, src_len, hidden_size]
-        energy = torch.tanh(self.attn(torch.cat((hidden, encoder_outputs), dim=2)))
-        
-        # Tính attention scores
-        # self.v -> [batch_size, src_len, 1]
-        attention = self.v(energy).squeeze(2) # [batch_size, src_len]
-        
-        # Softmax để ra xác suất (trọng số)
-        return F.softmax(attention, dim=1)
+
+        src_len = encoder_outputs.size(1)
+
+        dec = self.W_dec(decoder_hidden).unsqueeze(1)
+        # [batch_size, 1, hidden_size]
+
+        enc = self.W_enc(encoder_outputs)
+        # [batch_size, src_len, hidden_size]
+
+        energy = self.v(torch.tanh(dec + enc)).squeeze(2)
+        # [batch_size, src_len]
+
+        if mask is not None:
+            energy = energy.masked_fill(mask == 0, -1e9)
+
+        attn_weights = torch.softmax(energy, dim=1)
+
+        context = torch.bmm(
+            attn_weights.unsqueeze(1),
+            encoder_outputs
+        ).squeeze(1)
+        # [batch_size, hidden_size]
+
+        return context, attn_weights
 
 class DecoderAttention(nn.Module):
     def __init__(self, output_size, hidden_size, num_layers, dropout):
-        super(DecoderAttention, self).__init__()
-        self.output_size = output_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        
-        self.attention = Attention(hidden_size) # Thêm lớp Attention
-        
+        super().__init__()
+
         self.embedding = nn.Embedding(output_size, hidden_size)
-        
-        # LSTM input = embedding + context_vector (từ attention)
-        self.rnn = nn.LSTM(hidden_size * 2, hidden_size, num_layers=num_layers, 
-                           dropout=dropout, batch_first=True)
-        
-        self.fc_out = nn.Linear(hidden_size, output_size)
+        self.attention = BahdanauAttention(hidden_size)
+
+        self.lstm = nn.LSTM(
+            hidden_size * 2,
+            hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            batch_first=True
+        )
+
+        self.fc_out = nn.Linear(hidden_size * 2, output_size)
         self.dropout = nn.Dropout(dropout)
-    
+
     def forward(self, input, hidden, cell, encoder_outputs):
         # input: [batch_size, 1]
-        # hidden: [num_layers, batch_size, hidden_size]
-        # encoder_outputs: [batch_size, src_len, hidden_size]
-        
-        input = input.unsqueeze(1) # [batch_size, 1]
-        embedded = self.dropout(self.embedding(input)) # [batch_size, 1, hidden_size]
-        
-        # --- TÍNH ATTENTION ---
-        # Dùng hidden state lớp cuối cùng của decoder bước trước để tính attention
-        # hidden[-1]: [batch_size, hidden_size]
-        a = self.attention(hidden[-1], encoder_outputs) # [batch_size, src_len]
-        
-        # Tính Context Vector (Weighted sum của encoder outputs)
-        a = a.unsqueeze(1) # [batch_size, 1, src_len]
-        
-        # bmm (batch matrix multiplication): [batch, 1, src_len] * [batch, src_len, hidden]
-        context = torch.bmm(a, encoder_outputs) # [batch_size, 1, hidden_size]
-        
-        # --- KẾT HỢP VÀ ĐƯA VÀO LSTM ---
-        # Kết hợp embedding của từ hiện tại với context vector
-        rnn_input = torch.cat((embedded, context), dim=2) # [batch_size, 1, hidden_size * 2]
-        
-        output, (hidden, cell) = self.rnn(rnn_input, (hidden, cell))
-        
-        # Dự đoán từ
-        prediction = self.fc_out(output.squeeze(1))
-        
-        return prediction, hidden, cell
+        embedded = self.dropout(self.embedding(input))
+        # [batch_size, 1, hidden_size]
+
+        decoder_hidden = hidden[-1]
+        # [batch_size, hidden_size]
+
+        context, attn_weights = self.attention(
+            decoder_hidden, encoder_outputs
+        )
+
+        context = context.unsqueeze(1)
+
+        lstm_input = torch.cat([embedded, context], dim=2)
+
+        output, (hidden, cell) = self.lstm(
+            lstm_input, (hidden, cell)
+        )
+
+        output = output.squeeze(1)
+        context = context.squeeze(1)
+
+        prediction = self.fc_out(
+            torch.cat([output, context], dim=1)
+        )
+
+        return prediction, hidden, cell, attn_weights
 
 class Seq2SeqAttention(nn.Module):
     def __init__(self, encoder, decoder, device):
@@ -130,19 +135,25 @@ class Seq2SeqAttention(nn.Module):
         outputs = torch.zeros(batch_size, target_len, target_vocab_size).to(self.device)
         
         # Encoder trả về cả outputs (cho attention) và hidden/cell
-        encoder_outputs, hidden, cell = self.encoder(source, source_lengths)
-        
-        input = target[:, 0] # Start token <sos>
-        
+        encoder_outputs, encoder_hidden, encoder_cell = self.encoder(
+            source, source_lengths
+        )
+
+        hidden, cell = encoder_hidden, encoder_cell
+        input = target[:, 0]
+
         for t in range(1, target_len):
-            # Truyền encoder_outputs vào decoder
-            output, hidden, cell = self.decoder(input, hidden, cell, encoder_outputs)
-            
+            output, hidden, cell, attn = self.decoder(
+                input.unsqueeze(1),
+                hidden,
+                cell,
+                encoder_outputs
+            )
+
             outputs[:, t] = output
-            
+
             teacher_force = torch.rand(1).item() < teacher_forcing_ratio
             top1 = output.argmax(1)
-            
             input = target[:, t] if teacher_force else top1
-        
+
         return outputs
