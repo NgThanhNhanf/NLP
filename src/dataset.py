@@ -7,8 +7,7 @@ import io
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
 
-# 3. Custom Dataset Class
-# 3. Custom Dataset Class
+# Custom Dataset Class
 class TranslationDataset(Dataset):
     def __init__(self, src_path, trg_path, src_vocab, trg_vocab, src_tokenizer, trg_tokenizer):
         self.src_data = open(src_path, encoding='utf-8').readlines()
@@ -38,7 +37,7 @@ class TranslationDataset(Dataset):
         return torch.tensor(src_indices, dtype=torch.long), \
                torch.tensor(trg_indices, dtype=torch.long)
 
-# 4. Class Collator (Để xử lý Padding trong DataLoader)
+# Class Collator (Để xử lý Padding trong DataLoader)
 class Collator:
     def __init__(self, src_pad_idx, trg_pad_idx, src_sos_idx, src_eos_idx, trg_sos_idx, trg_eos_idx):
         self.src_pad_idx = src_pad_idx
@@ -74,7 +73,6 @@ class Collator:
         trg_batch = pad_sequence(trg_batch, padding_value=self.trg_pad_idx, batch_first=True)
         
         # Chuyển src_lengths từ list sang tensor
-        # print(tuple(src_lengths))
         src_lengths = torch.tensor(src_lengths, dtype=torch.long)
         
         return src_batch, trg_batch, src_lengths
@@ -84,7 +82,7 @@ def yield_tokens(filepath, tokenizer):
         for line in f:
             yield tokenizer(line.strip().lower())
 
-# 5. Hàm chính để gọi từ Main (Helper function)
+# 5. Hàm chính
 def build_vocab_and_tokenizers(en_tokenizer, fr_tokenizer):
     src_filepath = 'data/raw/train.en'
     trg_filepath = 'data/raw/train.fr'

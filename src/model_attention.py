@@ -17,7 +17,6 @@ class EncoderAttention(nn.Module):
         # src: [batch_size, seq_len]
         embedded = self.dropout(self.embedding(src))
 
-        # Xử lý src_len như code cũ của bạn
         if src_len.dim() == 0:
             src_len = src_len.unsqueeze(0)
         if (src_len == 0).any():
@@ -30,11 +29,7 @@ class EncoderAttention(nn.Module):
         
         packed_outputs, (hidden, cell) = self.rnn(packed_embedded)
         
-        # --- THAY ĐỔI QUAN TRỌNG CHO ATTENTION ---
-        # Unpack sequence để lấy outputs của tất cả các bước thời gian
         outputs, _ = nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first=True)
-        # outputs: [batch_size, src_len, hidden_size]
-        # hidden, cell: [num_layers, batch_size, hidden_size]
         
         return outputs, hidden, cell
 
@@ -93,35 +88,6 @@ class DecoderAttention(nn.Module):
         self.fc_out = nn.Linear(hidden_size * 2, output_size)
         self.dropout = nn.Dropout(dropout)
 
-    # def forward(self, input, hidden, cell, encoder_outputs):
-    #     # input: [batch_size, 1]
-    #     embedded = self.dropout(self.embedding(input))
-    #     # [batch_size, 1, hidden_size]
-
-    #     decoder_hidden = hidden[-1]
-    #     # [batch_size, hidden_size]
-
-    #     context, attn_weights = self.attention(
-    #         decoder_hidden, encoder_outputs
-    #     )
-
-    #     context = context.unsqueeze(1)
-
-    #     lstm_input = torch.cat([embedded, context], dim=2)
-
-    #     output, (hidden, cell) = self.lstm(
-    #         lstm_input, (hidden, cell)
-    #     )
-
-    #     output = output.squeeze(1)
-    #     context = context.squeeze(1)
-
-    #     prediction = self.fc_out(
-    #         torch.cat([output, context], dim=1)
-    #     )
-
-    #     return prediction, hidden, cell, attn_weights
-
     def forward(self, input, hidden, cell, encoder_outputs):
         # input: [batch_size, 1]
         embedded = self.dropout(self.embedding(input))
@@ -168,6 +134,7 @@ class Seq2SeqAttention(nn.Module):
         batch_size = source.shape[0]
         target_len = target.shape[1]
         target_vocab_size = self.decoder.output_size
+
         
         outputs = torch.zeros(batch_size, target_len, target_vocab_size).to(self.device)
         

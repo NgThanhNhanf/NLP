@@ -15,9 +15,6 @@ class Encoder(nn.Module):
     def forward(self, src, src_len):
         # src: [batch_size, seq_len]
         embedded = self.dropout(self.embedding(src))  # [batch_size, seq_len, hidden_size]
-
-        # print(f"Encoder received src_len shape: {src_len.shape}")
-        # print(f"Encoder received src_len values: {src_len}")
         
         # Đảm bảo src_len là tensor 1D
         if src_len.dim() == 0:  # Nếu là scalar (batch_size=1)
@@ -105,7 +102,7 @@ class Seq2Seq(nn.Module):
             output, hidden, cell = self.decoder(
                 input.unsqueeze(1),      # [batch_size, 1]
                 hidden, cell,            # Hidden, cell từ bước trước
-                encoder_hidden           # ← CONTEXT TỪ ENCODER (quan trọng!)
+                encoder_hidden           # Context từ encoder
             )
             
             # Lưu dự đoán
